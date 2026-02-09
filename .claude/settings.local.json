@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where:*)",
+      "Bash(\"C:\\Users\\alixcover\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" train_model.py)",
+      "Bash(\"C:\\Users\\alixcover\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" predict_price.py)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
