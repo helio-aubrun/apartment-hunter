@@ -1,0 +1,108 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.manifest
+*.spec
+
+# Virtual Environments
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+.claude/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb
+
+# Flask
+instance/
+.webassets-cache
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*~
+
+# Saved Models
+saved_models/*.pkl
+saved_models/*.joblib
+saved_models/*.h5
+saved_models/*.pt
+saved_models/*.pth
+
+# Keep the saved_models directory but ignore its contents
+!saved_models/.gitkeep
+
+# Data Files (uncomment if you don't want to commit large datasets)
+# *.csv
+# *.parquet
+# *.h5
+# *.hdf5
+
+# Docker
+.dockerignore
+
+# Temporary Files
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Test Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre
+.pyre/

@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  apartment-hunter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: apartment-hunter-app
+    ports:
+      - "5000:5000"
+    volumes:
+      # Mount saved_models directory to persist trained models
+      - ./saved_models:/app/saved_models
+      # Optional: Mount dataset for easy updates
+      - ./clean_dataset.csv:/app/clean_dataset.csv:ro
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/api/status')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - apartment-hunter-network
+
+networks:
+  apartment-hunter-network:
+    driver: bridge
