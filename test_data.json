@@ -1,0 +1,18 @@
+{
+  "model": "RandomForest",
+  "data": {
+    "Unnamed: 0": 0,
+    "id": 21742,
+    "sq_mt_built": 85,
+    "n_rooms": 3,
+    "n_bathrooms": 2,
+    "rent_price": 650,
+    "buy_price_by_area": 1500,
+    "is_floor_under": false,
+    "is_new_development": false,
+    "has_lift": true,
+    "is_exterior": true,
+    "is_exact_address_hidden": false,
+    "is_renewal_needed": false
+  }
+}
