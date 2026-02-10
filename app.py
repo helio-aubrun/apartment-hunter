@@ -73,6 +73,12 @@ def load_data():
         # Load the dataset
         df = pd.read_csv(filepath, index_col=0)
 
+        # Drop any unnamed index columns
+        unnamed_cols = [col for col in df.columns if col.startswith('Unnamed:')]
+        if unnamed_cols:
+            df = df.drop(columns=unnamed_cols)
+            print(f"Dropped index columns: {unnamed_cols}")
+
         # Initialize predictor
         predictor = PricePredictor(df, target=target)
 
