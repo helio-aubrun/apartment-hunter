@@ -138,7 +138,7 @@ class PricePredictor:
 
 if __name__ == "__main__":
     # 1. Load data
-    df = pd.read_csv("clean_dataset.csv")  # or your existing DataFrame
+    df = pd.read_csv("clean_dataset.csv", index_col=0)  # or your existing DataFrame
 
     # 2. Create the object
     predictor = PricePredictor(df)

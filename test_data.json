@@ -1,7 +1,6 @@
 {
   "model": "RandomForest",
   "data": {
-    "Unnamed: 0": 0,
     "id": 21742,
     "sq_mt_built": 85,
     "n_rooms": 3,

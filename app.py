@@ -71,7 +71,7 @@ def load_data():
         target = data.get('target', 'buy_price')
 
         # Load the dataset
-        df = pd.read_csv(filepath)
+        df = pd.read_csv(filepath, index_col=0)
 
         # Initialize predictor
         predictor = PricePredictor(df, target=target)
