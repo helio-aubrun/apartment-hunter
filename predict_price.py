@@ -1,246 +1,126 @@
-"""
-Price Prediction Module for Madrid Houses
-
-Core functions to load the trained model and make price predictions.
-Can be imported in notebooks or other scripts.
-
-Example usage:
-    from predict_price import load_model, predict_single, predict_batch
-
-    model_data = load_model('price_prediction_model.pkl')
-    price = predict_single(model_data, sq_mt_built=85, n_rooms=3, n_bathrooms=2)
-"""
-
-import pickle
 import pandas as pd
-from typing import Dict, Union, Optional
+import numpy as np
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+import xgboost as xgb
+from sklearn.metrics import mean_squared_error
 
+class PricePredictor:
+    def __init__(self, df, target="buy_price", test_size=0.2, random_state=42):
+        """
+        Initialise le prédicteur.
+        df : DataFrame contenant les données
+        target : nom de la colonne cible
+        """
+        self.df = df
+        self.target = target
+        self.random_state = random_state
+        
+        # Séparer X et y
+        self.X = df.drop(target, axis=1)
+        self.y = df[target]
+        
+        # Diviser en train/test
+        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
+            self.X, self.y, test_size=test_size, random_state=random_state
+        )
+        
+        # Initialiser les modèles
+        self.models = {
+            "LinearRegression": LinearRegression(),
+            "RandomForest": RandomForestRegressor(random_state=random_state),
+            "XGBoost": xgb.XGBRegressor(random_state=random_state, objective="reg:squarederror")
+        }
+        
+        # Hyperparamètres pour GridSearch
+        self.params = {
+            "RandomForest": {
+                "n_estimators": [100, 200],
+                "max_depth": [None, 5, 10],
+                "min_samples_split": [2, 5]
+            },
+            "XGBoost": {
+                "n_estimators": [100, 200],
+                "learning_rate": [0.01, 0.1],
+                "max_depth": [3, 5]
+            }
+        }
+        
+        # Stocker les résultats
+        self.trained_models = {}
+        self.rmse_scores = {}
 
-def load_model(model_path: str = 'price_prediction_model.pkl') -> Dict:
-    """
-    Load the trained model from a pickle file.
+    # -----------------------------
+    # Méthode pour entraîner tous les modèles
+    # -----------------------------
+    def train(self):
+        # 1️⃣ Linear Regression (pas de GridSearch)
+        lr = self.models["LinearRegression"]
+        lr.fit(self.X_train, self.y_train)
+        self.trained_models["LinearRegression"] = lr
+        pred = lr.predict(self.X_test)
+        self.rmse_scores["LinearRegression"] = np.sqrt(mean_squared_error(self.y_test, pred))
+        
+        # 2️⃣ Random Forest avec GridSearch
+        rf = self.models["RandomForest"]
+        rf_grid = GridSearchCV(
+            rf, self.params["RandomForest"], cv=3, 
+            scoring="neg_root_mean_squared_error", n_jobs=-1
+        )
+        rf_grid.fit(self.X_train, self.y_train)
+        self.trained_models["RandomForest"] = rf_grid.best_estimator_
+        pred = rf_grid.predict(self.X_test)
+        self.rmse_scores["RandomForest"] = np.sqrt(mean_squared_error(self.y_test, pred))
+        
+        # 3️⃣ XGBoost avec GridSearch
+        xgbr = self.models["XGBoost"]
+        xgb_grid = GridSearchCV(
+            xgbr, self.params["XGBoost"], cv=3, 
+            scoring="neg_root_mean_squared_error", n_jobs=-1
+        )
+        xgb_grid.fit(self.X_train, self.y_train)
+        self.trained_models["XGBoost"] = xgb_grid.best_estimator_
+        pred = xgb_grid.predict(self.X_test)
+        self.rmse_scores["XGBoost"] = np.sqrt(mean_squared_error(self.y_test, pred))
+        
+        print("✅ Entraînement terminé.")
 
-    Parameters:
-    -----------
-    model_path : str
-        Path to the pickle file containing the model
+    # -----------------------------
+    # Méthode pour obtenir les scores RMSE
+    # -----------------------------
+    def get_scores(self):
+        return pd.DataFrame({
+            "Model": list(self.rmse_scores.keys()),
+            "RMSE": list(self.rmse_scores.values())
+        }).sort_values("RMSE")
 
-    Returns:
-    --------
-    dict
-        Dictionary containing model, imputer, feature_columns, and metadata
-    """
-    with open(model_path, 'rb') as f:
-        model_data = pickle.load(f)
-    return model_data
+    # -----------------------------
+    # Méthode pour prédire avec un modèle donné
+    # -----------------------------
+    def predict(self, model_name, X_new):
+        """
+        model_name : "LinearRegression", "RandomForest", "XGBoost"
+        X_new : DataFrame ou array des nouvelles données
+        """
+        if model_name not in self.trained_models:
+            raise ValueError(f"Modèle {model_name} non entraîné. Appelez d'abord train()")
+        model = self.trained_models[model_name]
+        return model.predict(X_new)
 
+if __name__ == "__main__":
+    df = pd.read_csv("clean_dataset.csv")  # ou ton DataFrame existant
 
-def get_required_features(model_data: Dict) -> list:
-    """
-    Get list of required features for the model.
+    # 2️⃣ Créer l'objet
+    predictor = PricePredictor(df)
 
-    Parameters:
-    -----------
-    model_data : dict
-        Dictionary returned by load_model()
+    # 3️⃣ Entraîner tous les modèles
+    predictor.train()
 
-    Returns:
-    --------
-    list
-        List of required feature column names
-    """
-    return model_data['feature_columns']
+    # 4️⃣ Voir les RMSE
+    print(predictor.get_scores())
 
-
-def check_dataframe_features(df: pd.DataFrame, model_data: Dict) -> Dict:
-    """
-    Check which required features are missing from the DataFrame.
-
-    Parameters:
-    -----------
-    df : pd.DataFrame
-        Input DataFrame
-    model_data : dict
-        Dictionary returned by load_model()
-
-    Returns:
-    --------
-    dict
-        Dictionary with 'missing' and 'present' feature lists
-    """
-    required_features = model_data['feature_columns']
-    df_columns = set(df.columns)
-
-    missing = [col for col in required_features if col not in df_columns]
-    present = [col for col in required_features if col in df_columns]
-
-    return {
-        'missing': missing,
-        'present': present,
-        'total_required': len(required_features)
-    }
-
-
-def predict_single(model_data: Dict,
-                   sq_mt_built: float,
-                   n_rooms: int,
-                   n_bathrooms: int,
-                   sq_mt_useful: Optional[float] = None,
-                   n_floors: Optional[float] = None,
-                   built_year: Optional[float] = None,
-                   has_central_heating: int = 0,
-                   has_individual_heating: int = 0,
-                   has_ac: int = 0,
-                   has_fitted_wardrobes: int = 0,
-                   has_lift: int = 0,
-                   is_exterior: int = 0,
-                   has_garden: int = 0,
-                   has_pool: int = 0,
-                   has_terrace: int = 0,
-                   has_balcony: int = 0,
-                   has_storage_room: int = 0,
-                   is_accessible: int = 0,
-                   has_green_zones: int = 0,
-                   has_parking: int = 0,
-                   is_parking_included_in_price: int = 0,
-                   parking_price: float = 0.0,
-                   is_orientation_north: int = 0,
-                   is_orientation_west: int = 0,
-                   is_orientation_south: int = 0,
-                   is_orientation_east: int = 0,
-                   is_renewal_needed: int = 0,
-                   is_new_development: int = 0) -> float:
-    """
-    Predict price for a single property.
-
-    Parameters:
-    -----------
-    model_data : dict
-        Dictionary returned by load_model()
-    sq_mt_built : float
-        Built area in square meters (required)
-    n_rooms : int
-        Number of rooms (required)
-    n_bathrooms : int
-        Number of bathrooms (required)
-    **other parameters : optional property features
-
-    Returns:
-    --------
-    float
-        Predicted price in euros
-    """
-    property_dict = {
-        'sq_mt_built': sq_mt_built,
-        'sq_mt_useful': sq_mt_useful if sq_mt_useful is not None else sq_mt_built * 0.85,
-        'n_rooms': n_rooms,
-        'n_bathrooms': n_bathrooms,
-        'n_floors': n_floors,
-        'built_year': built_year,
-        'has_central_heating': has_central_heating,
-        'has_individual_heating': has_individual_heating,
-        'has_ac': has_ac,
-        'has_fitted_wardrobes': has_fitted_wardrobes,
-        'has_lift': has_lift,
-        'is_exterior': is_exterior,
-        'has_garden': has_garden,
-        'has_pool': has_pool,
-        'has_terrace': has_terrace,
-        'has_balcony': has_balcony,
-        'has_storage_room': has_storage_room,
-        'is_accessible': is_accessible,
-        'has_green_zones': has_green_zones,
-        'has_parking': has_parking,
-        'is_parking_included_in_price': is_parking_included_in_price,
-        'parking_price': parking_price,
-        'is_orientation_north': is_orientation_north,
-        'is_orientation_west': is_orientation_west,
-        'is_orientation_south': is_orientation_south,
-        'is_orientation_east': is_orientation_east,
-        'is_renewal_needed': is_renewal_needed,
-        'is_new_development': is_new_development
-    }
-
-    model = model_data['model']
-    imputer = model_data['imputer']
-    feature_columns = model_data['feature_columns']
-
-    X_new = pd.DataFrame([property_dict])[feature_columns]
-    X_new_imputed = pd.DataFrame(
-        imputer.transform(X_new),
-        columns=feature_columns
-    )
-
-    return model.predict(X_new_imputed)[0]
-
-
-def predict_batch(model_data: Dict,
-                  df: pd.DataFrame,
-                  add_to_dataframe: bool = True) -> Union[pd.Series, pd.DataFrame]:
-    """
-    Predict prices for multiple properties from a DataFrame.
-
-    Parameters:
-    -----------
-    model_data : dict
-        Dictionary returned by load_model()
-    df : pd.DataFrame
-        DataFrame containing property features
-    add_to_dataframe : bool, default=True
-        If True, adds 'predicted_price' column to DataFrame
-        If False, returns only predictions as Series
-
-    Returns:
-    --------
-    pd.DataFrame or pd.Series
-        DataFrame with predictions or Series of predictions
-    """
-    model = model_data['model']
-    imputer = model_data['imputer']
-    feature_columns = model_data['feature_columns']
-
-    X_new = df[feature_columns].copy()
-    X_new_imputed = pd.DataFrame(
-        imputer.transform(X_new),
-        columns=feature_columns,
-        index=X_new.index
-    )
-
-    predictions = model.predict(X_new_imputed)
-
-    if add_to_dataframe:
-        df = df.copy()
-        df['predicted_price'] = predictions
-        return df
-    else:
-        return pd.Series(predictions, index=df.index)
-
-
-def predict_from_csv(model_data: Dict,
-                     csv_path: str,
-                     output_path: Optional[str] = None) -> pd.DataFrame:
-    """
-    Load properties from CSV and predict prices.
-
-    Parameters:
-    -----------
-    model_data : dict
-        Dictionary returned by load_model()
-    csv_path : str
-        Path to CSV file containing properties
-    output_path : str, optional
-        If provided, saves results to this path
-
-    Returns:
-    --------
-    pd.DataFrame
-        DataFrame with predicted prices
-    """
-    df = pd.read_csv(csv_path)
-    df_with_predictions = predict_batch(model_data, df, add_to_dataframe=True)
-
-    if output_path:
-        df_with_predictions.to_csv(output_path, index=False)
-        print(f"Predictions saved to: {output_path}")
-
-    return df_with_predictions
+    # 5️⃣ Faire une prédiction
+    X_new = df.iloc[:5, :-1]  # 5 premières lignes sans la colonne cible
+    preds = predictor.predict("RandomForest", X_new)
+    print(preds)
