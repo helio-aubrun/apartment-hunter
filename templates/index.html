@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apartment Hunter - Price Predictor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .section {
+            background: #f8f9fa;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        input, select, textarea {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+            margin-bottom: 10px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: bold;
+        }
+
+        .results {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            border: 1px solid #ddd;
+        }
+
+        .results pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 0.9em;
+        }
+
+        .model-checkbox {
+            margin-right: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        table th, table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        table th {
+            background: #667eea;
+            color: white;
+        }
+
+        .loading {
+            display: none;
+            color: #667eea;
+            font-style: italic;
+            margin-top: 10px;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 5px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 5px;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Apartment Hunter</h1>
+        <p class="subtitle">Price Prediction Model Interface</p>
+
+        <!-- Status Section -->
+        <div class="section">
+            <h2>System Status</h2>
+            <div id="status">
+                <span class="status-badge status-warning">Loading...</span>
+            </div>
+            <button onclick="checkStatus()">Refresh Status</button>
+        </div>
+
+        <!-- Load Data Section -->
+        <div class="section">
+            <h2>1. Load Data</h2>
+            <div class="form-group">
+                <label for="filepath">Dataset Path:</label>
+                <input type="text" id="filepath" value="clean_dataset.csv" placeholder="clean_dataset.csv">
+            </div>
+            <div class="form-group">
+                <label for="target">Target Column:</label>
+                <input type="text" id="target" value="buy_price" placeholder="buy_price">
+            </div>
+            <button onclick="loadData()">Load Dataset</button>
+            <div class="loading" id="load-loading">Loading data...</div>
+            <div class="error" id="load-error"></div>
+            <div class="success" id="load-success"></div>
+            <div class="results" id="data-info" style="display: none;"></div>
+        </div>
+
+        <!-- Train Models Section -->
+        <div class="section">
+            <h2>2. Train Models</h2>
+            <div class="form-group">
+                <label>Select Models to Train:</label>
+                <div>
+                    <label class="model-checkbox">
+                        <input type="checkbox" value="LinearRegression" checked> Linear Regression
+                    </label>
+                    <label class="model-checkbox">
+                        <input type="checkbox" value="RandomForest" checked> Random Forest
+                    </label>
+                    <label class="model-checkbox">
+                        <input type="checkbox" value="XGBoost" checked> XGBoost
+                    </label>
+                </div>
+            </div>
+            <button onclick="trainModels()">Train Selected Models</button>
+            <button onclick="trainModels(true)">Train All Models</button>
+            <div class="loading" id="train-loading">Training models... This may take a while.</div>
+            <div class="error" id="train-error"></div>
+            <div class="success" id="train-success"></div>
+            <div class="results" id="train-results" style="display: none;"></div>
+        </div>
+
+        <!-- Make Predictions Section -->
+        <div class="section">
+            <h2>3. Make Predictions</h2>
+            <div class="form-group">
+                <label for="model-select">Select Model:</label>
+                <select id="model-select">
+                    <option value="LinearRegression">Linear Regression</option>
+                    <option value="RandomForest" selected>Random Forest</option>
+                    <option value="XGBoost">XGBoost</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="predict-data">Input Data (JSON):</label>
+                <textarea id="predict-data" rows="6" placeholder='{"surface": 100, "rooms": 3, "floor": 2, ...}'></textarea>
+            </div>
+            <button onclick="makePrediction()">Predict</button>
+            <button onclick="useTestData()">Use Test Data (First 5 rows)</button>
+            <div class="loading" id="predict-loading">Making predictions...</div>
+            <div class="error" id="predict-error"></div>
+            <div class="results" id="predict-results" style="display: none;"></div>
+        </div>
+
+        <!-- View Scores Section -->
+        <div class="section">
+            <h2>4. Model Performance</h2>
+            <button onclick="getScores()">View Model Scores</button>
+            <div class="results" id="scores-results" style="display: none;"></div>
+        </div>
+
+        <!-- Dataset Info Section -->
+        <div class="section">
+            <h2>5. Dataset Information</h2>
+            <button onclick="getDatasetInfo()">View Dataset Info</button>
+            <div class="results" id="dataset-info-results" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Check status on page load
+        window.onload = function() {
+            checkStatus();
+        };
+
+        // Helper function to show/hide elements
+        function showElement(id) {
+            document.getElementById(id).style.display = 'block';
+        }
+
+        function hideElement(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        // Check application status
+        async function checkStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+
+                let statusHTML = '';
+                statusHTML += data.data_loaded ?
+                    '<span class="status-badge status-success">Data Loaded</span>' :
+                    '<span class="status-badge status-warning">No Data</span>';
+
+                statusHTML += data.predictor_initialized ?
+                    '<span class="status-badge status-success">Predictor Ready</span>' :
+                    '<span class="status-badge status-warning">Predictor Not Initialized</span>';
+
+                if (data.trained_models.length > 0) {
+                    statusHTML += '<span class="status-badge status-success">Trained: ' +
+                        data.trained_models.join(', ') + '</span>';
+                }
+
+                document.getElementById('status').innerHTML = statusHTML;
+            } catch (error) {
+                document.getElementById('status').innerHTML =
+                    '<span class="status-badge status-warning">Error: ' + error.message + '</span>';
+            }
+        }
+
+        // Load data
+        async function loadData() {
+            const filepath = document.getElementById('filepath').value;
+            const target = document.getElementById('target').value;
+
+            hideElement('load-error');
+            hideElement('load-success');
+            hideElement('data-info');
+            showElement('load-loading');
+
+            try {
+                const response = await fetch('/api/load-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filepath, target })
+                });
+
+                const data = await response.json();
+                hideElement('load-loading');
+
+                if (data.success) {
+                    document.getElementById('load-success').innerHTML = data.message;
+                    showElement('load-success');
+
+                    const infoHTML = `
+                        <strong>Dataset Shape:</strong> ${data.shape[0]} rows × ${data.shape[1]} columns<br>
+                        <strong>Target:</strong> ${data.target}<br>
+                        <strong>Columns:</strong> ${data.columns.join(', ')}
+                    `;
+                    document.getElementById('data-info').innerHTML = infoHTML;
+                    showElement('data-info');
+
+                    checkStatus();
+                } else {
+                    document.getElementById('load-error').innerHTML = 'Error: ' + data.error;
+                    showElement('load-error');
+                }
+            } catch (error) {
+                hideElement('load-loading');
+                document.getElementById('load-error').innerHTML = 'Error: ' + error.message;
+                showElement('load-error');
+            }
+        }
+
+        // Train models
+        async function trainModels(trainAll = false) {
+            hideElement('train-error');
+            hideElement('train-success');
+            hideElement('train-results');
+            showElement('train-loading');
+
+            let models = null;
+
+            if (!trainAll) {
+                const checkboxes = document.querySelectorAll('.model-checkbox input:checked');
+                models = Array.from(checkboxes).map(cb => cb.value);
+
+                if (models.length === 0) {
+                    hideElement('train-loading');
+                    document.getElementById('train-error').innerHTML = 'Please select at least one model';
+                    showElement('train-error');
+                    return;
+                }
+            }
+
+            try {
+                const response = await fetch('/api/train', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ models })
+                });
+
+                const data = await response.json();
+                hideElement('train-loading');
+
+                if (data.success) {
+                    document.getElementById('train-success').innerHTML = data.message;
+                    showElement('train-success');
+
+                    let resultsHTML = '<h3>Model Scores (RMSE):</h3><table><tr><th>Model</th><th>RMSE</th></tr>';
+                    data.scores.forEach(score => {
+                        resultsHTML += `<tr><td>${score.Model}</td><td>${score.RMSE.toFixed(2)}</td></tr>`;
+                    });
+                    resultsHTML += '</table>';
+
+                    document.getElementById('train-results').innerHTML = resultsHTML;
+                    showElement('train-results');
+
+                    checkStatus();
+                } else {
+                    document.getElementById('train-error').innerHTML = 'Error: ' + data.error;
+                    showElement('train-error');
+                }
+            } catch (error) {
+                hideElement('train-loading');
+                document.getElementById('train-error').innerHTML = 'Error: ' + error.message;
+                showElement('train-error');
+            }
+        }
+
+        // Make prediction
+        async function makePrediction() {
+            const model = document.getElementById('model-select').value;
+            const dataText = document.getElementById('predict-data').value;
+
+            hideElement('predict-error');
+            hideElement('predict-results');
+            showElement('predict-loading');
+
+            try {
+                const inputData = JSON.parse(dataText);
+
+                const response = await fetch('/api/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model, data: inputData })
+                });
+
+                const data = await response.json();
+                hideElement('predict-loading');
+
+                if (data.success) {
+                    let resultsHTML = `
+                        <h3>Prediction Results</h3>
+                        <strong>Model:</strong> ${data.model}<br>
+                        <strong>Number of Predictions:</strong> ${data.count}<br>
+                        <strong>Predictions:</strong><br>
+                        <pre>${JSON.stringify(data.predictions, null, 2)}</pre>
+                    `;
+                    document.getElementById('predict-results').innerHTML = resultsHTML;
+                    showElement('predict-results');
+                } else {
+                    document.getElementById('predict-error').innerHTML = 'Error: ' + data.error;
+                    showElement('predict-error');
+                }
+            } catch (error) {
+                hideElement('predict-loading');
+                document.getElementById('predict-error').innerHTML = 'Error: ' + error.message;
+                showElement('predict-error');
+            }
+        }
+
+        // Use test data for prediction
+        async function useTestData() {
+            try {
+                const response = await fetch('/api/dataset-info');
+                const data = await response.json();
+
+                if (data.success) {
+                    // Create sample data from statistics
+                    const stats = data.statistics;
+                    const columns = Object.keys(stats);
+                    const sampleData = [];
+
+                    // Get first 5 samples (using mean values as example)
+                    for (let i = 0; i < 5; i++) {
+                        const sample = {};
+                        columns.forEach(col => {
+                            if (col !== data.target && stats[col].mean !== undefined) {
+                                sample[col] = stats[col].mean;
+                            }
+                        });
+                        sampleData.push(sample);
+                    }
+
+                    document.getElementById('predict-data').value = JSON.stringify(sampleData, null, 2);
+                }
+            } catch (error) {
+                console.error('Error loading test data:', error);
+            }
+        }
+
+        // Get model scores
+        async function getScores() {
+            try {
+                const response = await fetch('/api/scores');
+                const data = await response.json();
+
+                if (data.success) {
+                    let resultsHTML = '<h3>Model Performance (RMSE):</h3><table><tr><th>Model</th><th>RMSE</th></tr>';
+                    data.scores.forEach(score => {
+                        resultsHTML += `<tr><td>${score.Model}</td><td>${score.RMSE.toFixed(2)}</td></tr>`;
+                    });
+                    resultsHTML += '</table><p><small>Lower RMSE is better</small></p>';
+
+                    document.getElementById('scores-results').innerHTML = resultsHTML;
+                    showElement('scores-results');
+                }
+            } catch (error) {
+                document.getElementById('scores-results').innerHTML = 'Error: ' + error.message;
+                showElement('scores-results');
+            }
+        }
+
+        // Get dataset info
+        async function getDatasetInfo() {
+            try {
+                const response = await fetch('/api/dataset-info');
+                const data = await response.json();
+
+                if (data.success) {
+                    let resultsHTML = `
+                        <h3>Dataset Information</h3>
+                        <strong>Shape:</strong> ${data.shape[0]} rows × ${data.shape[1]} columns<br>
+                        <strong>Target Variable:</strong> ${data.target || 'N/A'}<br>
+                        <strong>Training Set Size:</strong> ${data.train_size ? data.train_size[0] + ' samples' : 'N/A'}<br>
+                        <strong>Test Set Size:</strong> ${data.test_size ? data.test_size[0] + ' samples' : 'N/A'}<br><br>
+                        <strong>Columns:</strong> ${data.columns.join(', ')}<br><br>
+                        <strong>Missing Values:</strong><br>
+                        <pre>${JSON.stringify(data.missing_values, null, 2)}</pre>
+                    `;
+
+                    document.getElementById('dataset-info-results').innerHTML = resultsHTML;
+                    showElement('dataset-info-results');
+                }
+            } catch (error) {
+                document.getElementById('dataset-info-results').innerHTML = 'Error: ' + error.message;
+                showElement('dataset-info-results');
+            }
+        }
+    </script>
+</body>
+</html>
